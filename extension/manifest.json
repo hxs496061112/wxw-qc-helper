@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "旺销王质检放大助手",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "在订单扫码页显示大图、尺码、数量及本单备注。只读当前页面，不提交扫码或验货。",
   "content_scripts": [
     {

@@ -192,18 +192,28 @@ function Apply-Bundle([byte[]]$Archive,[byte[]]$Json,[byte[]]$Signature,$Info) {
         } catch {Recover-Pending;throw}
     } finally {Remove-Managed $stage}
 }
-function Add-Shortcuts {
-    Register-NativeHost
-    $desktop=[Environment]::GetFolderPath('Desktop')
+function Remove-LegacyShortcuts([string]$DesktopDirectory=[Environment]::GetFolderPath('Desktop')) {
     $shell=New-Object -ComObject WScript.Shell
-    foreach($item in @(@('旺销王助手在线更新','Update'),@('旺销王助手回退上一版','Rollback'))) {
-        $shortcut=$shell.CreateShortcut((Join-Path $desktop ($item[0]+'.lnk')))
-        $shortcut.TargetPath=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
-        $shortcut.Arguments='-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $script:Root 'Launch.ps1')+'" -Mode '+$item[1]
-        $shortcut.WorkingDirectory=$script:Root
-        $shortcut.Description=$item[0];$shortcut.Save()
-    }
-    [Runtime.InteropServices.Marshal]::ReleaseComObject($shell)|Out-Null
+    try {
+        foreach($item in @(@('旺销王助手在线更新','Update'),@('旺销王助手回退上一版','Rollback'))) {
+            $path=Join-Path $DesktopDirectory ($item[0]+'.lnk')
+            if(-not (Test-Path -LiteralPath $path -PathType Leaf)){continue}
+            $shortcut=$shell.CreateShortcut($path)
+            try {
+                $target=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+                $expected=@('Launch.ps1','manager\WxwQcUpdater.ps1') | ForEach-Object {
+                    '-NoProfile -ExecutionPolicy Bypass -File "'+(Join-Path $script:Root $_)+'" -Mode '+$item[1]
+                }
+                if($shortcut.TargetPath -ieq $target -and $shortcut.WorkingDirectory -ieq $script:Root -and $expected -icontains $shortcut.Arguments) {
+                    Remove-Item -LiteralPath $path -Force
+                }
+            } finally {[Runtime.InteropServices.Marshal]::ReleaseComObject($shortcut)|Out-Null}
+        }
+    } finally {[Runtime.InteropServices.Marshal]::ReleaseComObject($shell)|Out-Null}
+}
+function Finish-Integration {
+    if($Mode -eq 'Install' -and -not $NoUI){Register-NativeHost}
+    try{Remove-LegacyShortcuts}catch{Write-Host '旧桌面快捷方式未能清理，可手动删除；不影响 Edge 更新。'}
 }
 function Register-NativeHost {
     foreach($name in @('NativeHost.cmd','NativeHost.ps1')){
@@ -254,8 +264,8 @@ try {
     if(Test-Path -LiteralPath $installed){$currentVersion=[version](Read-Json $installed).version}
     if($Mode -ne 'Rollback' -and [version]$info.version -lt $currentVersion){throw '线上版本低于本机版本，未执行降级。'}
     if($Mode -ne 'Rollback' -and [version]$info.version -eq $currentVersion -and (Test-Files $script:Root $info)){
-        if($Mode -eq 'Install' -and -not $NoUI){Add-Shortcuts}
-        Notify-Result ('本机文件已是最新版本 '+$info.version+'。无需重新安装。若刚更新过，请应用扩展更新并刷新扫码页。')
+        Finish-Integration
+        Notify-Result ('本机文件已是最新版本 '+$info.version+'。以后直接在 Edge 点「重新加载」检查更新，成功后刷新扫码页。')
         return
     }
     Write-Host ('正在校验并安装版本 '+$info.version+'……')
@@ -264,11 +274,11 @@ try {
     else {$archive=Download-Bytes $info.url 8388608}
     Apply-Bundle $archive $json $sig $info
     if($Mode -eq 'Rollback'){Save-Json (Join-Path $script:Root 'skip-online-once.json') @{version=$info.version}}
+    Finish-Integration
     if($Mode -eq 'Install') {
-        if(-not $NoUI){Add-Shortcuts}
-        $text="安装文件已准备好，版本 $($info.version)。`r`n`r`n首次：在 Edge 扩展管理页开启开发人员模式，加载以下文件夹：`r`n$(Join-Path $script:Root 'extension')`r`n`r`n旧版若已安装，请先停用旧版，避免两份同时运行。`r`n以后双击桌面的「旺销王助手在线更新」，不用再传文件。"
+        $text="安装文件已准备好，版本 $($info.version)。`r`n`r`n首次：在 Edge 扩展管理页开启开发人员模式，加载以下文件夹：`r`n$(Join-Path $script:Root 'extension')`r`n`r`n已加载这个目录的，无需重新添加。`r`n以后直接在 Edge 点「重新加载」，等待助手图标显示 OK，再刷新扫码页。"
     } else {
-        $text="本机文件已更新至 $($info.version)。`r`n`r`n请点击 Edge 工具栏的旺销王助手图标 → 应用已下载更新，然后刷新旺销王扫码页。`r`n也可以到扩展管理页点「重新加载」。`r`n无需删除扩展或重新添加。"
+        $text="本机文件已更新至 $($info.version)。`r`n`r`n通过 Edge 发起的更新会自动加载新版。等待助手图标显示 OK，再刷新旺销王扫码页。`r`n无需删除扩展或重新添加。"
     }
     Notify-Result $text
 } catch {

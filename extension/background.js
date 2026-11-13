@@ -27,7 +27,7 @@ chrome.runtime.onInstalled.addListener(async()=>{
     });
     port.onDisconnect.addListener(()=>{
       const error=chrome.runtime.lastError;
-      if(!received)void report('error','未能连接更新程序，请先运行安装程序；也可使用桌面在线更新。');
+      if(!received)void report('error','未能连接更新程序，请先运行完整安装包里的安装程序，再点重新加载。');
     });
     port.postMessage({action:'update'});
   }catch{await report('error','无法启动更新程序，当前版本可继续使用。');}
