@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import shutil
 import tempfile
+import uuid
 from playwright.sync_api import sync_playwright
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -14,6 +15,9 @@ def main():
         temp=Path(folder)
         ext=temp/'extension'
         shutil.copytree(ROOT/'extension',ext)
+        # Do not invoke a real installed updater while checking a test profile.
+        background=ext/'background.js'
+        background.write_text(background.read_text(encoding='utf-8').replace('com.wxw.qc.updater','com.wxw.qc.missing_test_'+uuid.uuid4().hex),encoding='utf-8')
         manifest=json.loads((ext/'manifest.json').read_text(encoding='utf-8'))
         digest=hashlib.sha256(base64.b64decode(manifest['key'])).hexdigest()[:32]
         extension_id=''.join(chr(ord('a')+int(c,16)) for c in digest)
@@ -29,8 +33,8 @@ def main():
                 url=f'chrome-extension://{extension_id}/popup.html'
                 page.goto(url)
                 print('Loaded installed popup.',flush=True)
-                assert '0.7.1' in page.locator('#version').inner_text()
-                manifest['version']='0.7.2'
+                assert '0.8.0' in page.locator('#version').inner_text()
+                manifest['version']='0.8.1'
                 (ext/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False),encoding='utf-8')
                 page.locator('#apply').click()
                 print('Clicked runtime reload.',flush=True)
@@ -41,10 +45,10 @@ def main():
                 for _ in range(20):
                     try:
                         check.goto(url)
-                        if '0.7.2' in check.locator('#version').inner_text(timeout=1000):break
+                        if '0.8.1' in check.locator('#version').inner_text(timeout=1000):break
                     except Exception as error:print(type(error).__name__,str(error)[:160],flush=True)
                     check.wait_for_timeout(250)
-                assert '0.7.2' in check.locator('#version').inner_text()
+                assert '0.8.1' in check.locator('#version').inner_text()
                 print('PASS: isolated Chromium popup reload reads the new on-disk extension version.')
             finally:context.close()
 

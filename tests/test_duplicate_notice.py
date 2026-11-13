@@ -1,7 +1,7 @@
 """Duplicate result recognition uses fresh system notices and failure counters."""
 from pathlib import Path
 from playwright.sync_api import sync_playwright
-from test_compact_layout import fixture
+from test_viewport_layout import workspace_fixture as fixture
 
 ROOT=Path(__file__).resolve().parents[1]
 MESSAGE='这单重复了，重复扫描了。'
