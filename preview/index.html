@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-__NONCE__'; frame-src 'self' data: about:; img-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>旺销王质检 · 离线预览</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#edf2ef;color:#213c32;font:14px "Microsoft YaHei",sans-serif;height:100vh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#173f32;color:white;flex-wrap:wrap;flex:none}
+strong{font-size:16px}header small{color:#cae3d9}label{display:flex;align-items:center;gap:6px;font-size:13px}
+select,button{font:inherit;background:white;color:#163c30;border:1px solid #c7d8cd;border-radius:5px;padding:6px 8px;cursor:pointer}
+button:hover{background:#e7f1eb}#status{font-size:12px;color:#cee2d8;margin-left:auto}iframe{display:block;width:100%;flex:1;min-height:0;border:0;background:white}
+</style>
+</head>
+<body>
+<header>
+ <div><strong>质检离线预览</strong> <small id="version"></small><br><small>本地演练，不会提交订单</small></div>
+ <label>场景<select id="scene">
+  <option value="saved">已保存的现场页面</option>
+  <option value="single">单款 · 1 双</option><option value="double">单款 · 2 双</option>
+  <option value="two">两款 · 1 + 1 双</option><option value="mixed">两款 · 1 + 2 双</option>
+  <option value="three">三款合并 · 各 1 双</option><option value="notes">有备注和拣货备注</option>
+  <option value="no-notes">无备注</option><option value="duplicate">重复扫码提醒</option>
+  <option value="failure">其他扫码失败</option><option value="waiting">等待扫码结果</option>
+ </select></label>
+ <label>显示<select id="mode"><option value="latest">最新插件布局</option><option value="native">现场原页面</option></select></label>
+ <button id="reset" type="button">重置画面</button>
+ <span id="status" role="status">正在载入</span>
+</header>
+<iframe id="preview" title="离线订单扫码页面" sandbox="allow-scripts"></iframe>
+<script id="payload" type="application/json" nonce="__NONCE__">__PAYLOAD__</script>
+<script nonce="__NONCE__">
+'use strict';
+const payload=JSON.parse(document.getElementById('payload').textContent);
+const frame=document.getElementById('preview');
+document.getElementById('version').textContent='插件 v'+payload.version;
+function runScene(config){
+ const clean=e=>(e?.textContent||'').replace(/\s+/g,' ').trim();
+ const root=document.querySelector('.center-body>.body-right');
+ if(!root)throw new Error('存档中缺少扫码结果');
+ const scope=root.closest('.el-card__body');
+ const input=document.getElementById('scanInput');
+ const section=input.closest('.section');
+ const counter=Array.from(section.children).find(e=>/^累计扫描\s*\d+/.test(clean(e))&&!e.querySelector('input,button'));
+ const counters=()=>{const m=clean(counter).match(/累计扫描\s*(\d+)\s*次\s*[,，]\s*成功\s*(\d+)\s*次\s*[,，]\s*失败\s*(\d+)\s*次/);return m?m.slice(1).map(Number):[0,0,0]};
+ const setCounter=(all,ok,fail)=>{if(counter)counter.textContent=`累计扫描 ${all} 次, 成功 ${ok} 次, 失败 ${fail} 次`};
+ const notify=text=>parent.postMessage({kind:'wxw-preview-status',text},'*');
+ document.querySelectorAll('[data-preview-asset]').forEach(img=>{img.src=config.assets[img.dataset.previewAsset]||img.src});
+ // Vue's resize code is absent offline. Retain each column's relative width.
+ scope.querySelectorAll('.listview table').forEach(table=>{
+  const cols=[...table.querySelectorAll('col')];
+  const widths=cols.map(c=>parseFloat(c.style.width)||0),sum=widths.reduce((a,b)=>a+b,0);
+  if(sum)cols.forEach((c,i)=>c.style.width=(100*widths[i]/sum)+'%');
+  table.style.width='100%';
+ });
+ scope.querySelectorAll('.vxe-table--header-wrapper,.vxe-table--body-wrapper').forEach(e=>e.style.width='100%');
+ const templates=Array.from(root.querySelectorAll(':scope>.right-center')).map(e=>e.cloneNode(true));
+ const order=root.parentElement.querySelector('.body-left .shop .PRIMARY');
+ const shops=[...root.parentElement.querySelectorAll('.body-left .shop')];
+ const headerCells=[...scope.querySelectorAll('.listview table.vxe-table--header th')];
+ const column=name=>headerCells.find(e=>clean(e)===name)?.classList.value.split(/\s+/).find(c=>/^col_\d+$/.test(c));
+ const bodyRows=[...scope.querySelectorAll('.listview table.vxe-table--body tbody tr')];
+ const cell=(row,name)=>{const c=column(name);return c?row.querySelector(':scope>td.'+c):null};
+ const tracking=shops.find(e=>!e.contains(order)&&bodyRows.some(r=>clean(cell(r,'运单号'))===clean(e)));
+ const setCell=(row,name,value)=>{const e=cell(row,name);if(e)(e.querySelector(':scope>.vxe-cell')||e).textContent=value};
+ const scene=config.scene;
+ if(scene!=='saved'){
+  const quantities={single:[1],double:[2],two:[1,1],mixed:[1,2],three:[1,1,1],notes:[1,1],'no-notes':[1,1],duplicate:[1],failure:[1],waiting:[1]}[scene];
+  if(!quantities)throw new Error('未知演练场景');
+  const testOrder='DEMO-ORDER-001',testTracking='DEMO-TRACK-001';
+  if(order)order.textContent=testOrder;
+  if(tracking)tracking.textContent=testTracking;
+  scope.querySelectorAll(':scope>.tips').forEach(e=>e.remove());
+  root.querySelectorAll(':scope>.right-center').forEach(e=>e.remove());
+  quantities.forEach((qty,i)=>{
+   const node=templates[i%templates.length].cloneNode(true),size=[43,39,41][i];
+   // Keep the captured nested DOM; change only the scenario's text and quantities.
+   const walker=document.createTreeWalker(node,NodeFilter.SHOW_TEXT);let t;
+   while((t=walker.nextNode()))t.textContent=t.textContent.replace(/([（(])\s*\d{2}(?:\.\d)?\s*([)）])/g,'$1'+size+'$2').replace(/([-－])\s*\d{2}(?:\.\d)?\s*$/,'$1'+size);
+   const signs=node.querySelectorAll('.select-center :is(.sign,.sign-list)');
+   signs.forEach(s=>s.textContent='x'+qty);
+   root.append(node);
+  });
+  const total=[...root.querySelector(':scope>.right-title').children].find(e=>clean(e).startsWith('合计数量'));
+  if(total)total.textContent='合计数量 '+quantities.reduce((a,b)=>a+b,0);
+  const first=bodyRows.find(r=>cell(r,'平台订单号'));
+  if(first){
+   setCell(first,'平台订单号',testOrder);setCell(first,'运单号',testTracking);
+   setCell(first,'备注',scene==='notes'?'演练：改为 39 码，请核对后再装袋':'-');
+   setCell(first,'拣货备注',scene==='notes'?'演练：加一副白色鞋带':'-');
+   const goods=cell(first,'货品信息');
+   if(goods){const target=goods.querySelector(':scope>.vxe-cell')||goods;target.replaceChildren();
+    quantities.forEach((q,i)=>{const line=document.createElement('div');line.textContent=`演练商品 ${i+1}（${[43,39,41][i]}） × ${q}`;target.append(line)});
+   }
+  }
+ }
+ function simulate(kind){
+  document.querySelectorAll('[data-preview-toast]').forEach(e=>e.remove());
+  if(!input)return;
+  const code=clean(tracking);
+  input.value=code;input.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+  setTimeout(()=>{
+   if(kind==='waiting'){notify('等待结果演练 · 未连接任何业务接口');return}
+   const [all,ok,fail]=counters();
+   if(kind==='duplicate'||kind==='failure'){
+    const toast=document.createElement('div');toast.className='el-message el-message--error';toast.dataset.previewToast='true';
+    toast.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);z-index:999999;padding:14px 22px;background:#fff0ef;color:#bd2020;border:1px solid #e0b8b5;border-radius:6px';
+    toast.textContent=kind==='duplicate'?'已存在被扫描过的订单 '+clean(order):'离线演练：本次扫码失败';document.body.append(toast);
+    setCounter(all+1,ok,fail+1);
+   }else setCounter(all+1,ok+1,fail);
+   input.value='';notify('离线演练完成 · 没有提交真实扫码');
+  },180);
+ }
+ // Native controls remain visible for layout checks, with local-only interactions.
+ document.addEventListener('click',event=>{
+  const button=event.target.closest('button,a,[role="button"]');if(!button)return;
+  event.preventDefault();
+  if(clean(button)==='扫描'){
+   const [all,ok,fail]=counters();setTimeout(()=>{setCounter(all+1,ok+1,fail);input.value='';notify('离线扫码演练完成')},180);
+  }else notify('这是离线预览，此按钮不会执行真实业务操作');
+ });
+ input?.addEventListener('keydown',event=>{if(event.key==='Enter'&&event.isTrusted){event.preventDefault();const [all,ok,fail]=counters();setTimeout(()=>{setCounter(all+1,ok+1,fail);input.value='';notify('离线扫码演练完成')},180)}});
+ if(['duplicate','failure','waiting'].includes(scene))setTimeout(()=>simulate(scene),850);
+ input?.focus({preventScroll:true});
+ notify('已载入 · 可切换场景，右侧滚动查看完整记录');
+}
+function render(){
+ const scene=document.getElementById('scene').value,mode=document.getElementById('mode').value;
+ document.getElementById('status').textContent='正在载入';
+ const n=payload.nonce,s=payload.snapshot;
+ const scriptTag=code=>'<script nonce="'+n+'">'+code.replace(/<\/script/gi,'<\\/script')+'<\/script>';
+ const styleTag=css=>'<style>'+css.replace(/<\/style/gi,'<\\/style')+'</style>';
+ const config=JSON.stringify({scene,assets:s.assets}).replace(/</g,'\\u003c');
+ const csp=`default-src 'none'; img-src data:; font-src data:; style-src 'unsafe-inline'; script-src 'nonce-${n}'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'; frame-src 'none'`;
+ const baseCSS='html,body{margin:0}body{'+(s.body_style||'')+'}'+
+  '.listview table{table-layout:fixed}.listview .vxe-cell{max-width:100%;overflow-wrap:anywhere}'+
+  '.listview .vxe-table--header-wrapper{width:100%!important}';
+ frame.srcdoc='<!doctype html><html lang="zh-CN" data-wxw-offline-preview><head><meta charset="utf-8">'+
+  '<meta http-equiv="Content-Security-Policy" content="'+csp+'">'+styleTag(s.css)+styleTag(baseCSS)+
+  (mode==='latest'?styleTag(payload.extensionCSS):'')+'</head><body>'+s.html+
+  scriptTag('('+runScene.toString()+')('+config+');')+
+  (mode==='latest'?scriptTag(payload.extensionJS):'')+'</body></html>';
+}
+window.addEventListener('message',e=>{if(e.source===frame.contentWindow&&e.data?.kind==='wxw-preview-status')document.getElementById('status').textContent=e.data.text});
+document.getElementById('scene').addEventListener('change',render);
+document.getElementById('mode').addEventListener('change',render);
+document.getElementById('reset').addEventListener('click',render);
+render();
+</script>
+</body></html>

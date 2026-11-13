@@ -27,6 +27,31 @@ Windows + Microsoft Edge 的个人质检辅助扩展。读取当前订单扫码�
 
 ## 维护
 
+### 离线界面预览
+
+没有扫码枪时，可以使用已保存的真实扫码网页修改和验证布局。在 Edge 的已扫码页面按 Ctrl+S，保存类型选择“网页，全部”，保留 HTML 和旁边的 `_files` 文件夹。构建器不访问业务网站：
+
+```powershell
+$previewDir = Join-Path $env:USERPROFILE 'Desktop\旺销王质检离线预览'
+py scripts/build_preview.py --source "$env:USERPROFILE\Desktop\订单扫码 _ 旺销王ERP.html" --output-dir $previewDir
+```
+
+双击输出目录的 `打开预览.html` 即可，不需要 Python、扫码枪、登录或联网。默认用存档的原生页面结构、图片和数据，应用构建时 `extension/` 的插件代码。支持单款数量 1/2、两款数量 1+1/1+2、三款合并、有无备注、重复扫码、其他失败和等待结果；演练场景用克隆的原生节点构造，不是网站真实业务结果。显示模式可以切换到没有放大助手的原页面结构。
+
+以后代码改好，用已留存的私有快照重新生成即可，无需再保存业务网页：
+
+```powershell
+py scripts/build_preview.py --snapshot "$previewDir\page-snapshot.json" --output-dir $previewDir
+py tests/test_offline_preview.py
+py tests/test_offline_preview.py --preview "$previewDir\打开预览.html"
+```
+
+输出包括原始网页 ZIP 备份、私有快照、预览和说明。**这些文件含现场订单和商品资料，必须留在仓库外，不能提交或上传到公开更新仓库。** 构建器拒绝向本仓库内输出，及覆盖未标记的非空目录。仓库仅保留无业务数据的构建器、模板和合成测试。
+
+预览清除网站脚本、外部链接及表单提交，用限制脚本来源的 CSP 和隔离 iframe 禁止联网与跳转。只执行本地演练控制器与正式插件的界面代码；正式代码仅在预览副本中适配主机、路径和本地图片。它不加载安装更新器，也不修改已安装扩展。未保存的远程字体/小图标可能与现场不同。网站后端扫码成功、合并逻辑和接口变化仍须在质检电脑正常操作时验证。
+
+### 构建发布
+
 仓库中的 `extension/` 是正式扩展源；`manager/` 是Windows更新器；`scripts/build_release.py` 构建离线安装包和在线更新资产。
 
 修改后提高 `extension/manifest.json` 的version，同步content.js诊断版本和安装说明。测试通过再运行构建脚本；签名私钥路径见签名脚本参数。将四个资产 `latest.json`、`latest.sig`、`wxw-qc-update.zip`、`wxw-qc-installer.zip` 一起上传为新版本Release，全部上传后再公开该Release。
