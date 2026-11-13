@@ -6,7 +6,7 @@ Windows + Microsoft Edge 的个人质检辅助扩展。读取当前订单扫码�
 
 ## 安装和在线更新
 
-从 [最新版本](https://github.com/hxs496061112/wxw-qc-helper/releases/latest) 下载 `wxw-qc-installer.zip`，解压并运行“安装或升级.cmd”。详细步骤见 [INSTALL.txt](INSTALL.txt)。
+从 [最新版本](https://github.com/hxs496061112/wxw-qc-helper/releases/latest) 下载 `wxw-qc-installer.zip`，解压并运行“安装或升级.cmd”。安装窗口会保留成功或失败结果，核对文件和 Edge 更新组件后才报告成功；详细步骤见 [INSTALL.txt](INSTALL.txt)。
 
 首次运行安装器，再将 `%LOCALAPPDATA%\WxwQcHelper\extension` 加载为 Edge 解压扩展。安装器会注册仅限此助手使用的本机更新组件（当前用户，无需管理员）。
 

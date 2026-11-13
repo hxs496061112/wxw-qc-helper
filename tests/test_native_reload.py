@@ -19,7 +19,7 @@ def main():
         background=ext/'background.js'
         background.write_text(background.read_text(encoding='utf-8').replace('com.wxw.qc.updater',NAME),encoding='utf-8')
         for name in ('NativeHost.cmd','NativeHost.ps1'):shutil.copy2(ROOT/'manager'/name,work/name)
-        (work/'Launch.ps1').write_text("$p=Join-Path $PSScriptRoot 'extension/manifest.json';$m=[IO.File]::ReadAllText($p)|ConvertFrom-Json;$m.version='0.6.2';[IO.File]::WriteAllText($p,($m|ConvertTo-Json -Depth 8));[IO.File]::AppendAllText((Join-Path $PSScriptRoot 'calls.txt'),'x');exit 0",encoding='utf-8-sig')
+        (work/'Launch.ps1').write_text("$p=Join-Path $PSScriptRoot 'extension/manifest.json';$m=[IO.File]::ReadAllText($p)|ConvertFrom-Json;$m.version='0.6.3';[IO.File]::WriteAllText($p,($m|ConvertTo-Json -Depth 8));[IO.File]::AppendAllText((Join-Path $PSScriptRoot 'calls.txt'),'x');exit 0",encoding='utf-8-sig')
         host=work/'host.json'
         host.write_text(json.dumps({'name':NAME,'description':'Isolated update test','path':str(work/'NativeHost.cmd'),'type':'stdio','allowed_origins':[f'chrome-extension://{ID}/']}),encoding='utf-8')
         try:
@@ -42,10 +42,10 @@ def main():
                         try:
                             if popup.is_closed():popup=context.new_page()
                             popup.goto(f'chrome-extension://{ID}/popup.html',timeout=3000)
-                            if '0.6.2' in popup.locator('#version').inner_text(timeout=1000) and '已更新至' in popup.locator('#status').inner_text(timeout=1000):break
+                            if '0.6.3' in popup.locator('#version').inner_text(timeout=1000) and '已更新至' in popup.locator('#status').inner_text(timeout=1000):break
                         except Exception as error:print(type(error).__name__,flush=True)
                         page.wait_for_timeout(300)
-                    assert '0.6.2' in popup.locator('#version').inner_text()
+                    assert '0.6.3' in popup.locator('#version').inner_text()
                     assert '已更新至' in popup.locator('#status').inner_text(),popup.locator('#status').inner_text()
                     assert (work/'calls.txt').read_text()=='x','Reload loop detected'
                     # Use the browser's actual extension-management reload button.
@@ -59,7 +59,7 @@ def main():
                     if popup.is_closed():popup=context.new_page()
                     popup.goto(f'chrome-extension://{ID}/popup.html')
                     popup.locator('#status').filter(has_text='更新未完成').wait_for(timeout=15000)
-                    assert '0.6.2' in popup.locator('#version').inner_text()
+                    assert '0.6.3' in popup.locator('#version').inner_text()
                     (work/'skip-online-once.json').write_text('{}')
                     page.locator('extensions-item').locator('#dev-reload-button').click()
                     if popup.is_closed():popup=context.new_page()

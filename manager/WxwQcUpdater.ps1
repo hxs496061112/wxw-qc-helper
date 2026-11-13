@@ -3,6 +3,7 @@ param(
     [ValidateSet('Install','Update','Rollback','Status')][string]$Mode='Update',
     [string]$PayloadDirectory='',
     [switch]$NoUI,
+    [switch]$InstallIntegration,
     [switch]$LibraryOnly
 )
 $ErrorActionPreference='Stop'
@@ -212,7 +213,7 @@ function Remove-LegacyShortcuts([string]$DesktopDirectory=[Environment]::GetFold
     } finally {[Runtime.InteropServices.Marshal]::ReleaseComObject($shell)|Out-Null}
 }
 function Finish-Integration {
-    if($Mode -eq 'Install' -and -not $NoUI){Register-NativeHost}
+    if($Mode -eq 'Install' -and ($InstallIntegration -or -not $NoUI)){Register-NativeHost}
     try{Remove-LegacyShortcuts}catch{Write-Host '旧桌面快捷方式未能清理，可手动删除；不影响 Edge 更新。'}
 }
 function Register-NativeHost {

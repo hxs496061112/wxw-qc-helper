@@ -48,7 +48,7 @@ def main():
              'files':{name:hashlib.sha256(data).hexdigest() for name,data in files.items()}}
     (DIST/'latest.json').write_text(json.dumps(release,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     subprocess.run([str(POWERSHELL),'-NoProfile','-ExecutionPolicy','Bypass','-File',str(ROOT/'scripts/Sign-Release.ps1'),'-ManifestPath',str(DIST/'latest.json'),'-SignaturePath',str(DIST/'latest.sig')],check=True)
-    launcher='@echo off\r\n"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0manager\\WxwQcUpdater.ps1" -Mode Install -PayloadDirectory "%~dp0payload"\r\nif errorlevel 1 pause\r\n'
+    launcher='@echo off\r\nsetlocal DisableDelayedExpansion\r\nchcp 65001 >nul\r\ntitle Wxw QC Installer\r\necho Installing Wxw QC Helper...\r\n"%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File "%~dp0manager\\Setup.ps1"\r\nset "WXW_SETUP_EXIT=%ERRORLEVEL%"\r\necho.\r\necho Installer exit code: %WXW_SETUP_EXIT%\r\necho Please read the result above. Press any key to close this window.\r\npause >nul\r\nexit /b %WXW_SETUP_EXIT%\r\n'
     outer=DIST/'wxw-qc-installer.zip'
     with zipfile.ZipFile(outer,'w',zipfile.ZIP_DEFLATED) as z:
         prefix=f'旺销王助手在线更新版_v{version}/'
