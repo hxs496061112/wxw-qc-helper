@@ -26,6 +26,8 @@ py tests/test_updater.py
 py tests/test_extension_reload.py
 ```
 
+发布后运行 `py tests/verify_public_release.py`，它会实际访问公开下载地址，并在临时用户目录验证安装及在线更新，不修改维护电脑的真实安装。v0.5.0 已通过此检查：公开安装包与本地 SHA-256 一致、离线安装、在线完整下载并安装、重复更新均通过。安装包 SHA-256：`6e79f357121a45c1e9c713a6fba1427c2199e41a46321980c0199463dfcea4d4`。
+
 构建将 PowerShell 脚本保存为 UTF-8 BOM，兼容 Windows PowerShell 5.1。运行器哈希和 ZIP 使用 .NET，避免依赖额外模块。发布资产位于忽略跟踪的 `dist/`。
 
 已验证：Windows PowerShell 5.1 离线安装、重复安装、升级、拒绝降级、显式回退、签名和压缩包损坏时保留旧版、危险路径拒绝、已有陌生目录保护、替换失败恢复、强制中断后从稳定入口恢复。隔离 Chromium 开发人员模式验证弹窗加载和 runtime.reload 读取新版本文件。
