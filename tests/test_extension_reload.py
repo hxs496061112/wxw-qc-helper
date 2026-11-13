@@ -29,8 +29,8 @@ def main():
                 url=f'chrome-extension://{extension_id}/popup.html'
                 page.goto(url)
                 print('Loaded installed popup.',flush=True)
-                assert '0.7.0' in page.locator('#version').inner_text()
-                manifest['version']='0.7.1'
+                assert '0.7.1' in page.locator('#version').inner_text()
+                manifest['version']='0.7.2'
                 (ext/'manifest.json').write_text(json.dumps(manifest,ensure_ascii=False),encoding='utf-8')
                 page.locator('#apply').click()
                 print('Clicked runtime reload.',flush=True)
@@ -41,10 +41,10 @@ def main():
                 for _ in range(20):
                     try:
                         check.goto(url)
-                        if '0.7.1' in check.locator('#version').inner_text(timeout=1000):break
+                        if '0.7.2' in check.locator('#version').inner_text(timeout=1000):break
                     except Exception as error:print(type(error).__name__,str(error)[:160],flush=True)
                     check.wait_for_timeout(250)
-                assert '0.7.1' in check.locator('#version').inner_text()
+                assert '0.7.2' in check.locator('#version').inner_text()
                 print('PASS: isolated Chromium popup reload reads the new on-disk extension version.')
             finally:context.close()
 

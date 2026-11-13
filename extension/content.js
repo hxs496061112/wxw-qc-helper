@@ -3,12 +3,18 @@
 if(location.hostname!=='v3.wxwerp.com'||globalThis.__wxwQcLiveBooted)return;
 globalThis.__wxwQcLiveBooted=true;
 const ID='wxw-qc-live';
+const DUPLICATE_MESSAGE='这单重复了，重复扫描了。';
 const onScanPage=()=>/^\/order\/startjob\/?$/.test(location.pathname);
 const routeKey=()=>onScanPage()?location.pathname+'?taskId='+new URL(location.href).searchParams.get('taskId'):'';
 let activeRoute='',observer=null;
 let host=null,shadow=null,bound=null,pending=null,timer=null,lastKey='',renderedKey='',candidate='',candidateTime=0;
 const clean=e=>(e?.textContent||'').replace(/\s+/g,' ').trim();
 const visible=e=>!!e&&e.getClientRects().length>0&&getComputedStyle(e).visibility!=='hidden';
+function duplicateNotices(){
+ return Array.from(document.querySelectorAll('.el-message,.el-notification,[role="alert"]'))
+  .filter(visible).map(node=>({node,text:clean(node)}))
+  .filter(({text})=>/已存在被扫描过的订单|(?:订单|单号).{0,24}(?:重复扫描|重复扫码)|(?:重复扫描|重复扫码).{0,24}(?:订单|单号)/.test(text));
+}
 function counters(){
  const m=(document.body.innerText||'').match(/累计扫描\s*(\d+)\s*次\s*[,，]\s*成功\s*(\d+)\s*次\s*[,，]\s*失败\s*(\d+)\s*次/);
  return m?{all:+m[1],success:+m[2],fail:+m[3]}:null;
@@ -97,7 +103,7 @@ function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className
 function mount(root){
  if(bound===root&&host?.isConnected)return;
  if(bound)bound.classList.remove('wxw-qc-layout');
- host?.remove();root.querySelector(':scope>#'+ID)?.remove();bound=root;host=document.createElement('section');host.id=ID;host.dataset.version='0.7.0';host.setAttribute('aria-label','质检放大');
+ host?.remove();root.querySelector(':scope>#'+ID)?.remove();bound=root;host=document.createElement('section');host.id=ID;host.dataset.version='0.7.1';host.setAttribute('aria-label','质检放大');
  shadow=host.attachShadow({mode:'open'});const css=el('style');css.textContent=style+'.order-total{margin:12px 12px 0;padding:12px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap}.order-total small{font-size:24px;font-weight:800;line-height:1.2}.order-total b{font-size:36px;font-weight:800;line-height:1.2}';shadow.append(css);
  root.classList.add('wxw-qc-layout');root.append(host);lastKey='';renderedKey='';
 }
@@ -126,7 +132,11 @@ function draw(data,message){
  // Late notes must never tear down already rendered SKU cards or images.
  if(!message&&prev&&renderedKey===currentProductKey){drawRemarks(prev.querySelector('.details'),data);return;}
  const panel=el('div','panel');
- if(message)panel.append(el('div','empty',message));
+ if(message){
+  const notice=el('div','empty'+(message===DUPLICATE_MESSAGE?' duplicate':''),message);
+  if(message===DUPLICATE_MESSAGE){notice.setAttribute('role','alert');notice.style.cssText='font-size:clamp(32px,3.4vw,56px);font-weight:800;line-height:1.5;color:#bd2020;background:#fff0ef;padding:48px 24px;';}
+  panel.append(notice);
+ }
  else{
   const total=el('div','quantity order-total'+(data.total>=2?' alert':''));
   total.append(el('small','','本单合计'),el('b','','× '+data.total));panel.append(total);
@@ -175,7 +185,9 @@ function update(){
  host.style.setProperty('--wxw-qc-rows',String(Array.from(root.querySelectorAll(':scope>.right-center')).filter(visible).length||1));
  if(pending){
   const c=counters();
-  if(c&&pending.counter&&c.fail>pending.counter.fail){draw(null,'本次扫码失败，请核对原页面');return;}
+  // Cache only a new notice from this attempt; old alerts and order notes are not evidence.
+  if(duplicateNotices().some(({node,text})=>pending.previousNotices.get(node)!==text))pending.duplicate=true;
+  if(c&&pending.counter&&c.fail>pending.counter.fail){draw(null,pending.duplicate?DUPLICATE_MESSAGE:'本次扫码失败，请核对原页面');return;}
   if(!c||!pending.counter||c.success<=pending.counter.success){draw(null,'等待本次扫码结果，上一单已清除');return;}
  }
  if(pending?.code&&data&&!data.codes.some(c=>c===pending.code||c.endsWith(' '+pending.code))){draw(null,'等待当前扫描码对应的订单，请核对原页面');return;}
@@ -185,7 +197,7 @@ function update(){
  if(Date.now()-candidateTime<140){schedule();return;}
  pending=null;draw(data);
 }
-function begin(code){syncRoute();if(!activeRoute)return;pending={counter:counters(),code:code||null};candidate='';lastKey='';if(shadow)draw(null,'等待本次扫码结果，上一单已清除');schedule();}
+function begin(code){syncRoute();if(!activeRoute)return;pending={counter:counters(),code:code||null,duplicate:false,previousNotices:new Map(duplicateNotices().map(({node,text})=>[node,text]))};candidate='';lastKey='';if(shadow)draw(null,'等待本次扫码结果，上一单已清除');schedule();}
 document.addEventListener('input',e=>{if(e.target.matches('input#scanInput,input[name="scanInput"]')&&e.target.value&&!pending)begin();},true);
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('input#scanInput,input[name="scanInput"]'))begin(e.target.value.trim());},true);
 document.addEventListener('click',e=>{const b=e.target.closest('button');if(b&&clean(b)==='扫描')begin(document.getElementById('scanInput')?.value.trim());},true);
