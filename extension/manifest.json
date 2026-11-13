@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "旺销王质检放大助手",
+  "version": "0.5.0",
+  "description": "在订单扫码页显示大图、尺码、数量及本单备注。只读当前页面，不提交扫码或验货。",
+  "content_scripts": [
+    {
+      "matches": [
+        "https://v3.wxwerp.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "css": [
+        "layout.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "旺销王质检放大助手"
+  },
+  "key": "MIIBojANBgkqhkiG9w0BAQEFAAOCAY8AMIIBigKCAYEAwiY9QclS/tnwFA+wlRcl5P3WBA/WS3Ass4SZ75cMD6uv48Ch8P+38cypNF/rHAKcRmY5V/lh/YVRstZQtjNljJVCRGH2Y/cOQhYU4JV3tfJvQJJdI39pcHOUrU+p0ywlDg7q3SjwmKtxcV3RzG9Rzwj5omJdrI4tWQKdNnMAfvpqNS4qA8Ay4W4n4n8rR2QymTdlQW4SPpPFqnTx+NDKU/2DsmhRtzFjZH45yK4cnDuMKBd/vG3MsYgP05Az/0WguhuKqh/6UtQUg1yo8U5zzPth6ybwazBRfejCCMfqQ1LcQbmtstEXmcjta82M0058l1ELPee/BEm5pBPq2+fNBqsCa3+ZIaVyZyj8f2+NXO86yR6oEtUocGmN/dzEKG1QjR1D3yKy1NIVRAMh/wt/BHJ/5XSHNpQrwmv1hpx/fuG4vs3zwhtyrZkNbJi2jrZP/1R3nDlQrQs/OYQCSKTY6TcRftton+iGayvBu+Y5RxtwwRaPQ50MwCDyVDKyL+HJAgMBAAE="
+}

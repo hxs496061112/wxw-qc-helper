@@ -1,0 +1,7 @@
+dist/
+test-output/
+__pycache__/
+*.pyc
+*-private*
+release-signing-key.xml
+*.log

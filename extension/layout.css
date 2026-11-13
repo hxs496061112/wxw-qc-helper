@@ -1,0 +1,10 @@
+/* Keep original content compact and place the enlarged cards beside it. */
+.body-right.wxw-qc-layout{display:grid!important;grid-template-columns:clamp(300px,32%,460px) minmax(0,1fr)!important;gap:14px!important;align-items:start!important;height:auto!important}
+.body-right.wxw-qc-layout>.right-title{grid-column:1/-1!important}
+.body-right.wxw-qc-layout>.right-center{min-width:0!important;width:auto!important;grid-column:1!important}
+.body-right.wxw-qc-layout>.right-center>.flex{flex-wrap:wrap!important}
+.body-right.wxw-qc-layout>.right-center .select-center{min-width:0!important;max-width:100%!important}
+.body-right.wxw-qc-layout>.right-center .wrap{overflow-wrap:anywhere!important}
+.body-right.wxw-qc-layout>#wxw-qc-live{grid-column:2!important;grid-row:2 / span var(--wxw-qc-rows,1)!important;width:min(100%,var(--wxw-qc-width,480px))!important;min-width:0!important;display:block!important;align-self:start!important;justify-self:start!important}
+.center-body:has(>.wxw-qc-layout){height:auto!important;min-height:200px!important;align-items:start!important}
+@media(max-width:1150px){.body-right.wxw-qc-layout{grid-template-columns:minmax(0,1fr)!important}.body-right.wxw-qc-layout>#wxw-qc-live{grid-column:1!important;grid-row:auto!important;width:min(100%,var(--wxw-qc-width,480px))!important}}
