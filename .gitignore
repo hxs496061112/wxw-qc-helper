@@ -5,3 +5,4 @@ __pycache__/
 *-private*
 release-signing-key.xml
 *.log
+test-output-*.txt

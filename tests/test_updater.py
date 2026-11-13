@@ -69,7 +69,7 @@ class UpdaterTests(unittest.TestCase):
 
     def test_production_offline_installer(self):
         self.run_updater(payload=ROOT/'dist',production=True)
-        self.assertEqual(self.installed_version(),'0.5.0')
+        self.assertEqual(self.installed_version(),json.loads((ROOT/'extension/manifest.json').read_text(encoding='utf-8'))['version'])
         self.assertEqual((self.installed/'extension/content.js').read_bytes(),(ROOT/'extension/content.js').read_bytes())
         before=len(list((self.installed/'backups').iterdir()))
         self.run_updater(payload=ROOT/'dist',production=True)

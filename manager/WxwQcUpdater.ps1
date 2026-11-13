@@ -193,6 +193,7 @@ function Apply-Bundle([byte[]]$Archive,[byte[]]$Json,[byte[]]$Signature,$Info) {
     } finally {Remove-Managed $stage}
 }
 function Add-Shortcuts {
+    Register-NativeHost
     $desktop=[Environment]::GetFolderPath('Desktop')
     $shell=New-Object -ComObject WScript.Shell
     foreach($item in @(@('旺销王助手在线更新','Update'),@('旺销王助手回退上一版','Rollback'))) {
@@ -203,6 +204,15 @@ function Add-Shortcuts {
         $shortcut.Description=$item[0];$shortcut.Save()
     }
     [Runtime.InteropServices.Marshal]::ReleaseComObject($shell)|Out-Null
+}
+function Register-NativeHost {
+    foreach($name in @('NativeHost.cmd','NativeHost.ps1')){
+        Copy-Item -LiteralPath (Join-Path $script:Root ('manager/'+$name)) -Destination (Safe-Path (Join-Path $script:Root $name)) -Force
+    }
+    $manifestPath=Safe-Path (Join-Path $script:Root 'native-host.json')
+    Save-Json $manifestPath @{name='com.wxw.qc.updater';description='Wxw QC signed updater';path=(Join-Path $script:Root 'NativeHost.cmd');type='stdio';allowed_origins=@('chrome-extension://hldbbmhhmgjcfmlbkglekcigjkbefobe/')}
+    $key=[Microsoft.Win32.Registry]::CurrentUser.CreateSubKey('Software\Microsoft\Edge\NativeMessagingHosts\com.wxw.qc.updater')
+    try{$key.SetValue('',$manifestPath,[Microsoft.Win32.RegistryValueKind]::String)}finally{$key.Dispose()}
 }
 function Notify-Result([string]$Text,[bool]$Failed=$false) {
     Write-Host $Text
@@ -253,6 +263,7 @@ try {
     elseif($Mode -eq 'Rollback'){$archive=[IO.File]::ReadAllBytes((Join-Path $saved 'current.zip'))}
     else {$archive=Download-Bytes $info.url 8388608}
     Apply-Bundle $archive $json $sig $info
+    if($Mode -eq 'Rollback'){Save-Json (Join-Path $script:Root 'skip-online-once.json') @{version=$info.version}}
     if($Mode -eq 'Install') {
         if(-not $NoUI){Add-Shortcuts}
         $text="安装文件已准备好，版本 $($info.version)。`r`n`r`n首次：在 Edge 扩展管理页开启开发人员模式，加载以下文件夹：`r`n$(Join-Path $script:Root 'extension')`r`n`r`n旧版若已安装，请先停用旧版，避免两份同时运行。`r`n以后双击桌面的「旺销王助手在线更新」，不用再传文件。"

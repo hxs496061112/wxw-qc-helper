@@ -97,7 +97,7 @@ function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className
 function mount(root){
  if(bound===root&&host?.isConnected)return;
  if(bound)bound.classList.remove('wxw-qc-layout');
- host?.remove();root.querySelector(':scope>#'+ID)?.remove();bound=root;host=document.createElement('section');host.id=ID;host.dataset.version='0.5.0';host.setAttribute('aria-label','质检放大');
+ host?.remove();root.querySelector(':scope>#'+ID)?.remove();bound=root;host=document.createElement('section');host.id=ID;host.dataset.version='0.6.0';host.setAttribute('aria-label','质检放大');
  shadow=host.attachShadow({mode:'open'});const css=el('style');css.textContent=style+'.order-total{margin:12px 12px 0;padding:12px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap}.order-total small{font-size:24px;font-weight:800;line-height:1.2}.order-total b{font-size:36px;font-weight:800;line-height:1.2}';shadow.append(css);
  root.classList.add('wxw-qc-layout');root.append(host);lastKey='';renderedKey='';
 }

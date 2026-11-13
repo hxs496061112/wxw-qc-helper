@@ -4,6 +4,8 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import shutil
+import struct
 import tempfile
 import urllib.request
 import zipfile
@@ -37,6 +39,15 @@ def main():
         assert run(profile/'WxwQcHelper/Launch.ps1',profile,'-Mode','Update')==expected
         fresh=work/'fresh'
         assert run(ROOT/'manager/WxwQcUpdater.ps1',fresh,'-Mode','Update')==expected
+        for name in ('NativeHost.cmd','NativeHost.ps1'):
+            shutil.copy2(fresh/'WxwQcHelper/manager'/name,fresh/'WxwQcHelper'/name)
+        message=b'{"action":"update"}'
+        env=os.environ.copy();env['LOCALAPPDATA']=str(fresh)
+        bridge=subprocess.run([str(PS),'-NoProfile','-ExecutionPolicy','Bypass','-File',str(fresh/'WxwQcHelper/NativeHost.ps1')],input=struct.pack('<I',len(message))+message,capture_output=True,timeout=150,env=env)
+        assert bridge.returncode==0
+        length=struct.unpack('<I',bridge.stdout[:4])[0]
+        result=json.loads(bridge.stdout[4:])
+        assert length==len(bridge.stdout)-4 and result['ok'] and result['version']==expected,result
         print(json.dumps({'public_version':expected,'installer_sha256':hashlib.sha256(installer.read_bytes()).hexdigest(),'offline_installer':'passed','online_download_and_install':'passed','repeat_update':'passed'},ensure_ascii=False))
 
 if __name__=='__main__':main()
