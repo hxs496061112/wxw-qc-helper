@@ -118,7 +118,6 @@ function clearWorkspace(){
  if(workspace){
   workspace.classList.remove('wxw-qc-workspace');
   workspace.querySelectorAll('.wxw-qc-counter').forEach(e=>e.classList.remove('wxw-qc-counter'));
-  workspace.style.removeProperty('--wxw-qc-history-height');
  }
  workspace=null;fitKey='';
 }
@@ -166,8 +165,7 @@ const fitStyle=`
 function fitWorkspace(){
  if(!workspace||!host?.isConnected||!workspace.contains(host))return;
  const history=workspace.querySelector('.el-card__body>.listview');
- const historyHeight=Math.round(Math.min(144,Math.max(96,innerHeight*0.14)));
- setStyle(workspace,'--wxw-qc-history-height',historyHeight+'px');
+ const historyPreview=Math.round(Math.min(144,Math.max(96,innerHeight*0.14)));
  host.classList.add('viewport-fit');host.classList.toggle('short-view',innerHeight<800);
  const count=shadow.querySelectorAll('.item').length;
  setStyle(bound,'--wxw-qc-native-count',String(bound.querySelectorAll(':scope>.right-center').length||1));
@@ -179,8 +177,9 @@ function fitWorkspace(){
  setStyle(host,'--wxw-qc-columns',String(columns));
  const task=history?.previousElementSibling;
  const taskHeight=task&&!task.classList.contains('center-body')?task.getBoundingClientRect().height:0;
- // Reserve a header plus about 1–2 history rows. Long histories scroll locally.
- const reserve=(history?Math.min(historyHeight,history.scrollHeight)+taskHeight+28:20);
+ // Leave room for the start of the history in the first viewport only.
+ // The table itself retains its full natural height and scrolls with the page.
+ const reserve=(history?Math.min(historyPreview,history.getBoundingClientRect().height)+taskHeight+28:20);
  const budget=Math.max(240,Math.floor(innerHeight-pageTop(host)-reserve));
  const titleHeight=bound.querySelector(':scope>.right-title')?.getBoundingClientRect().height||0;
  const key=JSON.stringify([lastKey,innerWidth,innerHeight,host.clientWidth,budget,count,notes,infoHeight,titleHeight]);
@@ -198,7 +197,7 @@ function fitWorkspace(){
 function mount(root){
  if(bound===root&&host?.isConnected)return;
  if(bound){bound.classList.remove('wxw-qc-layout');for(const name of ['--wxw-qc-native-height','--wxw-qc-info-height','--wxw-qc-native-count'])bound.style.removeProperty(name);}
- host?.remove();root.querySelector(':scope>#'+ID)?.remove();bound=root;host=document.createElement('section');host.id=ID;host.dataset.version='0.8.0';host.setAttribute('aria-label','质检放大');
+ host?.remove();root.querySelector(':scope>#'+ID)?.remove();bound=root;host=document.createElement('section');host.id=ID;host.dataset.version='0.8.1';host.setAttribute('aria-label','质检放大');
  shadow=host.attachShadow({mode:'open'});const css=el('style');css.textContent=style+'.order-total{margin:12px 12px 0;padding:12px;display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap}.order-total small{font-size:24px;font-weight:800;line-height:1.2}.order-total b{font-size:36px;font-weight:800;line-height:1.2}';shadow.append(css);
  css.textContent+=fitStyle;
  root.classList.add('wxw-qc-layout');root.append(host);lastKey='';renderedKey='';fitKey='';

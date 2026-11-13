@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / 'test-output'
 
 
-def workspace_fixture(count, notes=False):
+def workspace_fixture(count, notes=False, history_rows=10):
     html = fixture(count, notes)
     start = html.index('<div class="el-card__body">')
     result = html.index('<div class="center-body">')
@@ -22,7 +22,7 @@ def workspace_fixture(count, notes=False):
     row_start = html.index('<tbody><tr>') + len('<tbody>')
     row_end = html.index('</tr></tbody>', row_start) + len('</tr>')
     row = html[row_start:row_end]
-    html = html[:row_end] + row * 9 + html[row_end:]
+    html = html[:row_end] + row * (history_rows-1) + html[row_end:]
     html += '''</div></div></div><style>
       body{margin:0;padding:0}h2{height:78px;padding:16px;margin:0;font-size:16px}
       .section{padding:10px}.mb-10px{margin-bottom:10px}.el-card{border:1px solid #eee;overflow:hidden}
@@ -69,8 +69,11 @@ def main():
                         focus:document.activeElement===originalInput,sameInput:document.querySelector('#scanInput')===originalInput,samePhoto:s.querySelector('.photo')===originalPhoto,
                         total:s.querySelector('.order-total').innerText,styles:h.getAttribute('style')};}''')
                     assert data['panel']['bottom']<=height-95,(count,notes,width,height,data)
-                    assert data['history']['bottom']<=height+2,(count,notes,width,height,data)
-                    assert 96<=data['history']['h']<=165
+                    assert data['history']['y']<=height-80,(count,notes,width,height,data)
+                    assert data['history']['h']>=520 and data['history']['bottom']>height
+                    assert 0<=data['history']['y']-data['panel']['bottom']<50
+                    assert page.locator('.listview').evaluate('(e)=>getComputedStyle(e).maxHeight')=='none'
+                    assert page.locator('.listview').evaluate('(e)=>getComputedStyle(e).overflowY')=='visible'
                     assert data['input']['w']<width*.31 and data['input']['x']<30,data
                     assert data['input']['w']>=210,data
                     assert not data['overflow'] and data['scroll']==0,data
@@ -83,12 +86,21 @@ def main():
                     if (width,height)==(1536,730):
                         page.screenshot(path=str(OUT/f'viewport-{count}-notes-{notes}.png'))
                         summaries.append({'items':count,'notes':notes,'photo_h':data['photos'][0]['h'],'panel_bottom':data['panel']['bottom'],'history_bottom':data['history']['bottom']})
-                # Scrolling history must not resize the main panel or lose any rows.
+                # Use the browser/page scroll to reach the full table and its final controls.
                 before=panel.bounding_box()
-                page.locator('.listview').evaluate('(e)=>e.scrollTop=180')
+                page.evaluate('window.scrollTo(0,document.documentElement.scrollHeight)')
                 page.wait_for_timeout(650)
                 assert abs(panel.bounding_box()['height']-before['height'])<1
-                assert page.locator('.listview').evaluate('(e)=>e.scrollTop')>0
+                assert page.evaluate('scrollY')>0
+                assert page.locator('.listview').evaluate('(e)=>e.scrollTop')==0
+                last_row=page.locator('.listview tbody tr').last.bounding_box()
+                verify=page.locator('#verify').bounding_box()
+                assert 0<=last_row['y'] and last_row['y']+last_row['height']<=720
+                assert 0<=verify['y'] and verify['y']+verify['height']<=720
+                page.screenshot(path=str(OUT/f'history-page-scroll-{count}-notes-{notes}.png'))
+                page.evaluate('window.scrollTo(0,0)')
+                page.wait_for_timeout(650)
+                assert abs(panel.bounding_box()['height']-before['height'])<1
         # Idle sizing must settle, not create a MutationObserver/layout loop.
         page.wait_for_timeout(600)
         page.evaluate('''()=>{window.layoutMutations=0;window.layoutWatcher=new MutationObserver(r=>layoutMutations+=r.length);layoutWatcher.observe(document.querySelector('.section'),{subtree:true,attributes:true,attributeFilter:['class','style']})}''')
@@ -106,7 +118,7 @@ def main():
         page.evaluate('''()=>{const result=document.querySelector('.center-body');for(let i=0;i<2;i++){const e=document.createElement('div');e.className='tips';e.textContent=i?'合并包裹，请逐项核对':'核对鞋码，加一副鞋带';e.style.cssText='padding:10px;margin-bottom:6px;background:#fcc';result.before(e)}}''')
         page.wait_for_timeout(700)
         assert panel.locator('.remark-box').count()==2
-        assert page.locator('.listview').bounding_box()['y']+page.locator('.listview').bounding_box()['height']<=922
+        assert page.locator('.listview').bounding_box()['y']<=840
         # A long note must remain fully readable; allow overflow instead of hiding safety text.
         page.locator('.col_2 .vxe-cell').evaluate_all('(nodes)=>nodes.forEach(e=>e.textContent="请核对备注与鞋码。".repeat(80))')
         page.locator('.tips').first.evaluate('(e)=>e.textContent="请核对备注与鞋码。"')
@@ -124,6 +136,27 @@ def main():
         page.wait_for_function("!document.querySelector('.wxw-qc-workspace')")
         assert page.locator('.listview').evaluate('(e)=>getComputedStyle(e).maxHeight')=='none'
         assert page.locator('#scanInput').bounding_box()['width']>1000
+        # One/few rows use their natural height; many rows expand the document.
+        for records in (1,2,30):
+            current['html']=workspace_fixture(1,history_rows=records)
+            page.goto('https://v3.wxwerp.com/order/startjob?taskId=records')
+            native_height=page.locator('.listview').bounding_box()['height']
+            page.add_style_tag(content=(ROOT/'extension/layout.css').read_text(encoding='utf-8'))
+            page.add_script_tag(content=(ROOT/'extension/content.js').read_text(encoding='utf-8'))
+            panel=page.locator('#wxw-qc-live')
+            panel.locator('.photo').first.wait_for()
+            page.wait_for_timeout(400)
+            actual_height=page.locator('.listview').bounding_box()['height']
+            assert abs(actual_height-native_height)<1,(records,native_height,actual_height)
+            assert page.locator('.listview tbody tr').count()==records
+            # No blank spacer between the current result and the first row.
+            result=page.locator('.center-body').bounding_box()
+            history=page.locator('.listview').bounding_box()
+            assert 0<=history['y']-result['y']-result['height']<40
+            page.evaluate('window.scrollTo(0,document.documentElement.scrollHeight)')
+            page.wait_for_timeout(650)
+            end=page.locator('#verify').bounding_box()
+            assert 0<=end['y'] and end['y']+end['height']<=920
         # Opening a fresh task without a scanned order must already shorten the input.
         current['html']=workspace_fixture(1).replace('<div class="center-body">','<div class="empty-result">')
         page.goto('https://v3.wxwerp.com/order/startjob?taskId=empty')
@@ -132,7 +165,7 @@ def main():
         page.locator('.wxw-qc-workspace').wait_for()
         assert page.locator('#scanInput').bounding_box()['width']<550
         assert page.locator('#wxw-qc-live').count()==0
-        print('PASS: viewport fit, short native scan input, history scrolling, focus/node stability, quantity and route cleanup.')
+        print('PASS: viewport fit, unchanged short scan input, natural table height, full page scrolling, focus/node stability, quantity and route cleanup.')
         print(json.dumps(summaries))
         browser.close()
 

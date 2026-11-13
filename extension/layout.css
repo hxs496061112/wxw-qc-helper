@@ -31,9 +31,7 @@
 .wxw-qc-workspace .body-right.wxw-qc-layout>.right-title>*{padding:4px 8px!important;line-height:1.4!important;min-height:0!important}
 .wxw-qc-workspace .body-right.wxw-qc-layout>.right-center{grid-column:1!important;max-height:calc((var(--wxw-qc-native-height,480px) - 6px * (var(--wxw-qc-native-count,1) - 1)) / var(--wxw-qc-native-count,1))!important;overflow:auto!important;min-height:0!important;margin:0!important;overscroll-behavior:contain}
 .wxw-qc-workspace .body-right.wxw-qc-layout>#wxw-qc-live{grid-column:2!important;grid-row:1 / span calc(var(--wxw-qc-rows,1) + 1)!important}
-.wxw-qc-workspace .el-card__body>.listview{max-height:var(--wxw-qc-history-height,150px)!important;overflow:auto!important;overscroll-behavior:contain;scrollbar-gutter:stable;border-top:1px solid #e3e8ed}
-.wxw-qc-workspace .el-card__body>.listview .vxe-table--header-wrapper{position:sticky!important;top:0!important;z-index:2!important;background:#f7f9fb}
-.wxw-qc-workspace .el-card__body>.listview .vxe-table--fixed-left-wrapper,.wxw-qc-workspace .el-card__body>.listview .vxe-table--fixed-right-wrapper{z-index:3}
+/* Keep scan history in its native document flow. The page scrollbar reveals all rows. */
 .wxw-qc-workspace .center-body+div:not(.listview){margin-bottom:4px!important;line-height:1.4!important}
 @media(max-width:1000px){
  .wxw-qc-workspace .center-body:has(>.wxw-qc-layout)>.body-left{position:relative!important;left:auto!important;top:auto!important;width:100%!important;max-height:none!important}
